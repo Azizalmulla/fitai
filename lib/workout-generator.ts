@@ -250,116 +250,22 @@ export const generateWorkoutPlan = (
   goal: string,
   experienceLevel: string,
 ): WorkoutPlan[] => {
-  const equipmentLevel = getEquipmentLevel(workoutLocation)
-  const workoutPlan: WorkoutPlan[] = []
-  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+  // Use the science-based splits from WORKOUT_SPLITS in fitness-calculator.ts
+  // Parse daysPerWeek as a number (e.g., '6' from '6 days')
+  const days = parseInt(daysPerWeek.match(/\d+/)?.[0] || '3', 10);
+  const { WORKOUT_SPLITS } = require('./fitness-calculator');
+  const splitKey = `${days}x`;
+  const split = WORKOUT_SPLITS[splitKey] || WORKOUT_SPLITS['3x'];
+  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-  // Determine number of workout days
-  let workoutDays = 3
-  if (daysPerWeek === "4-5 days") {
-    workoutDays = 4
-  } else if (daysPerWeek === "6+ days") {
-    workoutDays = 6
-  }
-
-  // Generate workout splits based on preference and days per week
-  let workoutSplits: string[] = []
-
-  if (workoutPreference.includes("strength")) {
-    if (workoutDays <= 3) {
-      workoutSplits = ["Full Body", "Rest Day", "Full Body", "Rest Day", "Full Body", "Rest Day", "Rest Day"]
-    } else if (workoutDays <= 4) {
-      workoutSplits = ["Upper Body", "Lower Body", "Rest Day", "Upper Body", "Lower Body", "Rest Day", "Rest Day"]
-    } else {
-      workoutSplits = [
-        "Chest & Triceps",
-        "Back & Biceps",
-        "Rest Day",
-        "Legs & Core",
-        "Shoulders & Arms",
-        "Full Body",
-        "Rest Day",
-      ]
-    }
-  } else if (workoutPreference.includes("cardio") || workoutPreference.includes("endurance")) {
-    if (workoutDays <= 3) {
-      workoutSplits = ["Cardio & Core", "Rest Day", "Full Body", "Rest Day", "Cardio & Core", "Rest Day", "Rest Day"]
-    } else if (workoutDays <= 4) {
-      workoutSplits = ["Cardio", "Upper Body", "Rest Day", "Cardio", "Lower Body", "Rest Day", "Rest Day"]
-    } else {
-      workoutSplits = ["Cardio", "Upper Body", "Cardio", "Lower Body", "Cardio", "Full Body", "Rest Day"]
-    }
-  } else if (workoutPreference.includes("hiit")) {
-    if (workoutDays <= 3) {
-      workoutSplits = ["HIIT & Core", "Rest Day", "HIIT & Core", "Rest Day", "HIIT & Core", "Rest Day", "Rest Day"]
-    } else if (workoutDays <= 4) {
-      workoutSplits = ["HIIT", "Upper Body", "Rest Day", "HIIT", "Lower Body", "Rest Day", "Rest Day"]
-    } else {
-      workoutSplits = ["HIIT", "Upper Body", "HIIT", "Lower Body", "HIIT", "Full Body", "Rest Day"]
-    }
-  } else if (workoutPreference.includes("flexibility") || workoutPreference.includes("mobility")) {
-    if (workoutDays <= 3) {
-      workoutSplits = [
-        "Mobility & Core",
-        "Rest Day",
-        "Full Body & Stretch",
-        "Rest Day",
-        "Mobility & Core",
-        "Rest Day",
-        "Rest Day",
-      ]
-    } else if (workoutDays <= 4) {
-      workoutSplits = [
-        "Mobility",
-        "Upper Body & Stretch",
-        "Rest Day",
-        "Mobility",
-        "Lower Body & Stretch",
-        "Rest Day",
-        "Rest Day",
-      ]
-    } else {
-      workoutSplits = [
-        "Mobility",
-        "Upper Body & Stretch",
-        "Mobility",
-        "Lower Body & Stretch",
-        "Mobility",
-        "Full Body & Stretch",
-        "Rest Day",
-      ]
-    }
-  } else {
-    // Mixed workouts (default)
-    if (workoutDays <= 3) {
-      workoutSplits = ["Full Body", "Rest Day", "Full Body", "Rest Day", "Full Body", "Rest Day", "Rest Day"]
-    } else if (workoutDays <= 4) {
-      workoutSplits = ["Upper Body", "Lower Body", "Rest Day", "Full Body", "Cardio & Core", "Rest Day", "Rest Day"]
-    } else {
-      workoutSplits = [
-        "Chest & Triceps",
-        "Back & Biceps",
-        "Rest Day",
-        "Legs & Core",
-        "Shoulders & Arms",
-        "Cardio & Core",
-        "Rest Day",
-      ]
-    }
-  }
-
-  // Create workout plan for each day
-  for (let i = 0; i < 7; i++) {
-    const focus = workoutSplits[i]
-    const exercises = generateWorkout(focus, goal, equipmentLevel, experienceLevel)
-
-    workoutPlan.push({
-      day: daysOfWeek[i],
+  // Map each day to the correct focus using the split
+  return daysOfWeek.map((day, idx) => {
+    const focus = split.schedule[idx];
+    return {
+      day,
       focus,
-      exercises,
+      exercises: generateWorkout(focus, goal, getEquipmentLevel(workoutLocation), experienceLevel),
       completed: false,
-    })
-  }
-
-  return workoutPlan
+    };
+  });
 }

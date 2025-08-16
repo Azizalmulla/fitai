@@ -1,12 +1,12 @@
 // Calculate meal frequency based on user preferences and schedule
-export const calculateMealFrequency = (workoutDuration: string, daysPerWeek: string): number => {
+export const calculateMealFrequency = (workoutDuration: string, workoutDays: string): number => {
   // Default to 3 meals per day
   let mealFrequency = 3
 
   // Adjust based on workout intensity and frequency
-  if (daysPerWeek === "6+ days" && workoutDuration !== "under 30 minutes") {
+  if ((workoutDays === "6 days" || workoutDays === "7 days") && workoutDuration !== "under 30 minutes") {
     mealFrequency = 5 // More frequent meals for high training volume
-  } else if (daysPerWeek === "4-5 days" && workoutDuration !== "under 30 minutes") {
+  } else if ((workoutDays === "4 days" || workoutDays === "5 days") && workoutDuration !== "under 30 minutes") {
     mealFrequency = 4 // Moderate meal frequency for moderate training volume
   }
 
@@ -175,21 +175,93 @@ export const adjustForDietaryPreferences = (
   macros: { protein: number; carbs: number; fat: number },
   diet: string,
 ): { protein: number; carbs: number; fat: number } => {
-  const adjustedMacros = { ...macros }
+  // Create a copy to avoid mutating the original
+  const adjustedMacros = { ...macros };
+  const totalCalories = (adjustedMacros.protein * 4) + (adjustedMacros.carbs * 4) + (adjustedMacros.fat * 9);
+  
+  if (diet.includes("vegan")) {
+    // Vegan: Lower protein, higher carbs
+    // Adjust protein down by 10-15% and increase carbs
+    const proteinReduction = Math.round(adjustedMacros.protein * 0.12);
+    adjustedMacros.protein -= proteinReduction;
+    adjustedMacros.carbs += Math.round((proteinReduction * 4) / 4); // Convert protein calories to carb grams
+  } 
+  else if (diet.includes("vegetarian")) {
+    // Vegetarian: Slightly lower protein, higher carbs
+    const proteinReduction = Math.round(adjustedMacros.protein * 0.08);
+    adjustedMacros.protein -= proteinReduction;
+    adjustedMacros.carbs += Math.round((proteinReduction * 4) / 4); // Convert protein calories to carb grams
+  }
+  else if (diet.includes("keto")) {
+    // Keto: Very low carb (5-10%), high fat (65-75%), moderate protein
+    // Calculate target macros based on percentages
+    const targetCarbsPercent = 0.05; // 5% of calories from carbs
+    const targetFatPercent = 0.70; // 70% of calories from fat
+    const targetProteinPercent = 0.25; // 25% of calories from protein
+    
+    // Set carbs to fixed low amount (20-50g depending on calorie level)
+    adjustedMacros.carbs = Math.min(50, Math.max(20, Math.round(totalCalories * targetCarbsPercent / 4)));
+    
+    // Calculate protein and fat from the remaining calories
+    const carbCalories = adjustedMacros.carbs * 4;
+    const remainingCalories = totalCalories - carbCalories;
+    
+    // Allocate remaining calories to protein and fat
+    const proteinCalories = remainingCalories * (targetProteinPercent / (targetProteinPercent + targetFatPercent));
+    const fatCalories = remainingCalories * (targetFatPercent / (targetProteinPercent + targetFatPercent));
+    
+    adjustedMacros.protein = Math.round(proteinCalories / 4);
+    adjustedMacros.fat = Math.round(fatCalories / 9);
+  }
+  else if (diet.includes("low-carb")) {
+    // Low-carb: Higher fat, moderate protein, lower carbs (but not keto-level)
+    const targetCarbsPercent = 0.20; // 20% of calories from carbs
+    const targetFatPercent = 0.45; // 45% of calories from fat
+    const targetProteinPercent = 0.35; // 35% of calories from protein
+    
+    // Calculate target macros based on percentages
+    adjustedMacros.carbs = Math.round((totalCalories * targetCarbsPercent) / 4);
+    adjustedMacros.protein = Math.round((totalCalories * targetProteinPercent) / 4);
+    adjustedMacros.fat = Math.round((totalCalories * targetFatPercent) / 9);
+  }
+  else if (diet.includes("paleo")) {
+    // Paleo: Higher protein, moderate fat, lower carbs
+    const targetCarbsPercent = 0.25; // 25% of calories from carbs
+    const targetFatPercent = 0.35; // 35% of calories from fat
+    const targetProteinPercent = 0.40; // 40% of calories from protein
+    
+    // Calculate target macros based on percentages
+    adjustedMacros.carbs = Math.round((totalCalories * targetCarbsPercent) / 4);
+    adjustedMacros.protein = Math.round((totalCalories * targetProteinPercent) / 4);
+    adjustedMacros.fat = Math.round((totalCalories * targetFatPercent) / 9);
+  }
+  else if (diet.includes("mediterranean")) {
+    // Mediterranean: Moderate protein, higher healthy fats, moderate carbs
+    const targetCarbsPercent = 0.40; // 40% of calories from carbs
+    const targetFatPercent = 0.35; // 35% of calories from fat (emphasis on monounsaturated)
+    const targetProteinPercent = 0.25; // 25% of calories from protein
+    
+    // Calculate target macros based on percentages
+    adjustedMacros.carbs = Math.round((totalCalories * targetCarbsPercent) / 4);
+    adjustedMacros.protein = Math.round((totalCalories * targetProteinPercent) / 4);
+    adjustedMacros.fat = Math.round((totalCalories * targetFatPercent) / 9);
+  }
+  else if (diet.includes("low-fat")) {
+    // Low-fat: 15% fat, 60% carbs, 25% protein (evidence-based for low-fat diets)
+    const targetCarbsPercent = 0.60; // 60% of calories from carbs
+    const targetFatPercent = 0.15;   // 15% of calories from fat
+    const targetProteinPercent = 0.25; // 25% of calories from protein
 
-  if (diet.includes("vegetarian") || diet.includes("vegan")) {
-    // Slightly lower protein, higher carbs for plant-based diets
-    const proteinReduction = Math.round(adjustedMacros.protein * 0.1)
-    adjustedMacros.protein -= proteinReduction
-    adjustedMacros.carbs += Math.round((proteinReduction * 4) / 4) // Convert protein calories to carb grams
-  } else if (diet.includes("low-carb") || diet.includes("keto")) {
-    // Lower carbs, higher fat for low-carb diets
-    const carbReduction = Math.round(adjustedMacros.carbs * 0.6)
-    adjustedMacros.carbs -= carbReduction
-    adjustedMacros.fat += Math.round((carbReduction * 4) / 9) // Convert carb calories to fat grams
+    adjustedMacros.carbs = Math.round((totalCalories * targetCarbsPercent) / 4);
+    adjustedMacros.protein = Math.round((totalCalories * targetProteinPercent) / 4);
+    adjustedMacros.fat = Math.round((totalCalories * targetFatPercent) / 9);
   }
 
-  return adjustedMacros
+  // Ensure minimum values for safety
+  adjustedMacros.carbs = Math.max(adjustedMacros.carbs, 20); // Minimum essential carbs for brain function
+  adjustedMacros.fat = Math.max(adjustedMacros.fat, 30); // Minimum essential fats
+
+  return adjustedMacros;
 }
 
 // Generate food recommendations based on macros and dietary preferences

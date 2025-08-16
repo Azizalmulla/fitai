@@ -6,7 +6,7 @@ export async function calculateFitnessData(formData: any): Promise<FitnessData |
   try {
     // Make a request to our API endpoint
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/calculate-fitness`,
+      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001"}/api/calculate-fitness`,
       {
         method: "POST",
         headers: {

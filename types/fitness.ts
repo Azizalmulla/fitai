@@ -3,6 +3,8 @@ export interface Exercise {
   sets: number
   reps: string
   weight: string
+  rir?: string
+  completed?: boolean
 }
 
 export interface WorkoutPlan {
@@ -21,38 +23,30 @@ export interface FitnessData {
   goal: string
   experienceLevel: string
 
-  // Calculated metrics
-  bmr: number
-  tdee: number
-  targetCalories: number
-  macros: {
-    protein: number
-    carbs: number
-    fat: number
-  }
-  waterNeeds: number
-
   // Workout plan
   workoutPlan: WorkoutPlan[]
-
-  // Nutrition recommendations
-  mealFrequency: number
-  mealPlan: Array<{
-    meal: string
-    calories: number
+  
+  // Health metrics
+  bmr?: number // Basal Metabolic Rate
+  tdee?: number // Total Daily Energy Expenditure
+  targetCalories?: number
+  waterNeeds?: number // in ml
+  
+  // Nutrition data
+  macros?: {
     protein: number
     carbs: number
     fat: number
-  }>
-  nutrientTiming: {
-    preworkout: string
-    postworkout: string
-    general: string
   }
-  foodRecommendations: {
-    proteins: string[]
-    carbs: string[]
-    fats: string[]
-    vegetables: string[]
+  mealFrequency?: number
+  mealPlan?: any // Detailed meal plan structure
+  nutrientTiming?: any // Nutrient timing recommendations
+  foodRecommendations?: any // Food recommendations based on diet
+
+  // Progress tracking
+  progressData?: {
+    dates: string[]
+    weight: number[]
+    bodyFat: number[]
   }
 }

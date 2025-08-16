@@ -1,0 +1,417 @@
+'use client';
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { generateMockFitnessData } from '../dashboard/page'
+
+function WorkoutSchedulePage() {
+  // --- Reset Workout Data Function ---
+  const resetWorkoutData = () => {
+    localStorage.removeItem("weeklyWorkouts");
+    localStorage.removeItem("completedWeeks");
+    window.location.reload();
+  };
+
+  const defaultData = generateMockFitnessData();
+
+  // Initialize state variables
+  const [fitnessData, setFitnessData] = useState<any>(defaultData);
+  const [currentWeek, setCurrentWeek] = useState(1);
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [weeklyWorkouts, setWeeklyWorkouts] = useState<any>({});
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isExerciseSelectionOpen, setIsExerciseSelectionOpen] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<any>(null);
+  const [editedExerciseName, setEditedExerciseName] = useState('');
+
+  // Exercise suggestions based on workout focus - this remains unchanged
+  const exerciseSuggestions: Record<string, string[]> = {
+    'Push': [
+      'Bench Press', 'Incline Bench Press', 'Overhead Press', 'Chest Flyes', 
+      'Tricep Extensions', 'Lateral Raises', 'Dips', 'Push-ups'
+    ],
+    'Pull': [
+      'Pull-ups', 'Chin-ups', 'Lat Pulldown', 'Bent Over Row', 'Face Pulls',
+      'Bicep Curls', 'Hammer Curls', 'Cable Rows'
+    ],
+    'Legs': [
+      'Squat', 'Deadlift', 'Leg Press', 'Lunges', 'Romanian Deadlift',
+      'Hamstring Curls', 'Calf Raises', 'Hip Thrusts'
+    ],
+    'Upper': [
+      'Bench Press', 'Pull-ups', 'Overhead Press', 'Bent Over Row',
+      'Tricep Extensions', 'Bicep Curls', 'Lateral Raises', 'Face Pulls'
+    ],
+    'Lower': [
+      'Squat', 'Deadlift', 'Leg Press', 'Lunges', 'Romanian Deadlift',
+      'Hip Thrusts', 'Hamstring Curls', 'Calf Raises'
+    ],
+    'Full Body': [
+      'Squat', 'Bench Press', 'Deadlift', 'Overhead Press', 'Pull-ups',
+      'Lunges', 'Push-ups', 'Dips'
+    ],
+    'Chest & Triceps': [
+      'Bench Press', 'Incline Bench Press', 'Chest Flyes', 'Dips',
+      'Tricep Extensions', 'Tricep Pushdown', 'Push-ups', 'Close-Grip Bench Press'
+    ],
+    'Back & Biceps': [
+      'Pull-ups', 'Bent Over Row', 'Lat Pulldown', 'Cable Rows',
+      'Bicep Curls', 'Hammer Curls', 'Face Pulls', 'Chin-ups'
+    ],
+    'Shoulders & Arms': [
+      'Overhead Press', 'Lateral Raises', 'Front Raises', 'Face Pulls',
+      'Bicep Curls', 'Tricep Extensions', 'Shrugs', 'Dips'
+    ],
+    'Rest Day': [
+      'Walking', 'Light Cycling', 'Yoga', 'Stretching', 'Mobility Work'
+    ]
+  };
+
+  // Load data from localStorage
+  useEffect(() => {
+    try {
+      // Load fitnessData
+      const fitnessDataFromStorage = localStorage.getItem("fitnessData");
+      let parsedFitnessData = defaultData;
+      
+      if (fitnessDataFromStorage) {
+        parsedFitnessData = JSON.parse(fitnessDataFromStorage);
+      }
+      
+      setFitnessData(parsedFitnessData);
+      setSelectedDayIndex(0); // Set Sunday as default
+      
+      // Create workout data with fallback to defaultData
+      const workoutsArray = (parsedFitnessData.workoutPlan && parsedFitnessData.workoutPlan.length > 0)
+        ? parsedFitnessData.workoutPlan
+        : defaultData.workoutPlan;
+      const freshWorkouts = {
+        [currentWeek]: JSON.parse(JSON.stringify(workoutsArray))
+      };
+      
+      // Reorder days to ensure Sunday is first
+      if (freshWorkouts[1] && freshWorkouts[1].length > 0) {
+        if (freshWorkouts[1][0].day === "Monday") {
+          const sunday = freshWorkouts[1].pop();
+          if (sunday) {
+            freshWorkouts[1].unshift(sunday);
+          }
+        }
+      }
+      
+      setWeeklyWorkouts(freshWorkouts);
+      setIsLoaded(true);
+    } catch (error) {
+      console.error("Error loading data:", error);
+    }
+  }, []);
+
+  // Helper functions
+  const handleDayChange = (index: number) => {
+    setSelectedDayIndex(index);
+  };
+
+  // Add a new exercise
+  const addExercise = () => {
+    setIsExerciseSelectionOpen(true);
+  };
+
+  // Add a specific exercise to the selected day
+  const addSpecificExercise = (exerciseName: string) => {
+    setWeeklyWorkouts((prev: any) => {
+      const updatedWorkouts = { ...prev };
+      
+      if (!updatedWorkouts[currentWeek][selectedDayIndex].exercises) {
+        updatedWorkouts[currentWeek][selectedDayIndex].exercises = [];
+      }
+      
+      updatedWorkouts[currentWeek][selectedDayIndex].exercises.push({
+        name: exerciseName,
+        sets: "3",
+        weight: "",
+        reps: "8-12",
+        rir: "",
+        completed: false
+      });
+      
+      // Save to localStorage
+      localStorage.setItem("weeklyWorkouts", JSON.stringify(updatedWorkouts));
+      
+      return updatedWorkouts;
+    });
+    
+    setIsExerciseSelectionOpen(false);
+  };
+
+  // Start editing an exercise name
+  const startEditExerciseName = (dayIndex: number, exerciseIndex: number, currentName: string) => {
+    setEditingExercise({ dayIndex, exerciseIndex });
+    setEditedExerciseName(currentName);
+  };
+
+  // Save the edited exercise name
+  const saveExerciseName = () => {
+    if (!editingExercise) return;
+    
+    setWeeklyWorkouts((prev: any) => {
+      const updatedWorkouts = { ...prev };
+      updatedWorkouts[currentWeek][editingExercise.dayIndex].exercises[editingExercise.exerciseIndex].name = editedExerciseName;
+      
+      // Save to localStorage
+      localStorage.setItem("weeklyWorkouts", JSON.stringify(updatedWorkouts));
+      
+      return updatedWorkouts;
+    });
+    
+    setEditingExercise(null);
+    setEditedExerciseName('');
+  };
+
+  // Toggle exercise completion
+  const toggleExerciseCompleted = (dayIndex: number, exerciseIndex: number) => {
+    setWeeklyWorkouts((prev: any) => {
+      const updatedWorkouts = { ...prev };
+      const exercise = updatedWorkouts[currentWeek][dayIndex].exercises[exerciseIndex];
+      exercise.completed = !exercise.completed;
+      
+      // Save to localStorage
+      localStorage.setItem("weeklyWorkouts", JSON.stringify(updatedWorkouts));
+      
+      return updatedWorkouts;
+    });
+  };
+
+  // Update exercise details
+  const updateExerciseDetail = (dayIndex: number, exerciseIndex: number, field: string, value: any) => {
+    setWeeklyWorkouts((prev: any) => {
+      const updatedWorkouts = { ...prev };
+      
+      if (!updatedWorkouts[currentWeek]) {
+        return prev;
+      }
+      
+      if (updatedWorkouts[currentWeek][dayIndex]?.exercises?.[exerciseIndex]) {
+        updatedWorkouts[currentWeek][dayIndex].exercises[exerciseIndex][field] = value;
+        
+        // Save to localStorage
+        localStorage.setItem("weeklyWorkouts", JSON.stringify(updatedWorkouts));
+      }
+      
+      return updatedWorkouts;
+    });
+  };
+
+  // Get current data
+  const currentWeekPlan = weeklyWorkouts[currentWeek] || [];
+  const selectedDay = currentWeekPlan[selectedDayIndex];
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <div className="container mx-auto px-4 py-6">
+        {/* Header with back button and reset */}
+        <div className="max-w-5xl mx-auto px-4 py-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8">
+            <h1 className="text-3xl font-bold">Workout Schedule</h1>
+            <button
+              onClick={resetWorkoutData}
+              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors border border-red-700 shadow-sm"
+              title="Reset only workout data (not nutrition)"
+            >
+              Reset Workout Data
+            </button>
+            <Link 
+              href="/dashboard" 
+              className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800/60 hover:bg-zinc-700/70 transition-all duration-200 rounded-full mb-3 backdrop-blur-sm shadow-sm border border-zinc-700/30 text-zinc-200"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 19L5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
+        
+        {/* Main workout content */}
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Day selector */}
+            <div className="md:col-span-1">
+              <div className="sticky top-4">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-semibold mb-1">Week {currentWeek}</h2>
+                  <p className="text-zinc-400 text-sm">
+                    Personalized Training Plan
+                  </p>
+                </div>
+                {/* Day selector buttons */}
+                <div className="space-y-1.5">
+                  {currentWeekPlan?.map((day: any, index: number) => (
+                    <button
+                      key={index}
+                      onClick={() => handleDayChange(index)}
+                      className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${
+                        selectedDayIndex === index
+                          ? 'bg-zinc-800 shadow-md' 
+                          : 'bg-zinc-900/50 hover:bg-zinc-800/70'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">{day.day}</span>
+                        <span className="text-sm text-zinc-400">{day.focus}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Week navigation */}
+                <div className="mt-8">
+                  <div className="flex justify-center items-center gap-3 bg-zinc-800/30 py-3 px-4 rounded-xl border border-zinc-700/20">
+                    <button 
+                      onClick={() => setCurrentWeek(Math.max(1, currentWeek - 1))}
+                      className="w-9 h-9 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      disabled={currentWeek <= 1}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                    <span className="text-zinc-200 font-medium text-lg px-4">Week {currentWeek}</span>
+                    <button 
+                      onClick={() => setCurrentWeek(currentWeek + 1)}
+                      className="w-9 h-9 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Workout details */}
+            <div className="md:col-span-3 bg-zinc-800/30 rounded-xl overflow-hidden shadow-lg backdrop-blur-sm border border-zinc-700/20">
+              {selectedDay && (
+                <div>
+                  {/* Day header */}
+                  <div className="bg-zinc-800 px-5 py-4 flex justify-between items-center">
+                    <div>
+                      <h2 className="text-xl font-medium mb-0.5">{selectedDay.day}</h2>
+                      <p className="text-zinc-400 text-sm">{selectedDay.focus}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Exercise list */}
+                  <div className="p-6">
+                    {selectedDay && selectedDay.exercises && (
+                      <div>
+                        {/* Render exercises or rest day message */}
+                        {(selectedDay.focus.toLowerCase().includes('rest') || 
+                         selectedDay.focus.toLowerCase().includes('off') || 
+                         selectedDay.focus === 'Rest') ? (
+                          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                            <div className="w-20 h-20 rounded-full bg-zinc-800/60 flex items-center justify-center mb-4">
+                              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M15 9L9 15M9 9L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </div>
+                            <h3 className="text-xl font-medium mb-2">Rest Day</h3>
+                            <p className="text-zinc-400 mb-6">Take time to recover and let your muscles rebuild.</p>
+                            <button
+                              onClick={addExercise}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 transition-colors rounded-full text-sm"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 5v14m-7-7h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                              Add Optional Exercise
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="flex justify-between items-center mb-6">
+                              <h3 className="text-xl font-semibold">{selectedDay.exercises.length > 0 ? 'Exercises' : 'No Exercises'}</h3>
+                              <button
+                                onClick={addExercise}
+                                className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600/80 hover:bg-indigo-600 transition-colors rounded-full text-sm"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M12 5v14m-7-7h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                                Add Exercise
+                              </button>
+                            </div>
+                            
+                            {selectedDay.exercises.length === 0 ? (
+                              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                                <p className="text-lg text-zinc-400 mb-6">No exercises added yet.</p>
+                                <button
+                                  onClick={addExercise}
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600/80 hover:bg-indigo-600 transition-colors rounded-full text-sm"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 5v14m-7-7h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                  Add Exercise
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="space-y-6">
+                                {/* Exercise items */}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Exercise selection modal */}
+      {isExerciseSelectionOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div className="bg-zinc-900 rounded-lg p-6 w-full max-w-md shadow-xl relative">
+            <button
+              className="absolute top-3 right-3 text-zinc-400 hover:text-white"
+              onClick={() => setIsExerciseSelectionOpen(false)}
+              aria-label="Close"
+            >
+              &times;
+            </button>
+
+            {/* Modal content */}
+            {selectedDay && (
+              <div>
+                <h4 className="text-sm font-medium text-white/70 mb-3">Suggested for {selectedDay.focus}</h4>
+                <div className="grid grid-cols-1 gap-2">
+                  {exerciseSuggestions[selectedDay.focus] ? (
+                    exerciseSuggestions[selectedDay.focus].map((exercise, index) => (
+                      <button
+                        key={index}
+                        className="text-left px-4 py-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors"
+                        onClick={() => addSpecificExercise(exercise)}
+                      >
+                        {exercise}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-white/50 text-sm">No specific suggestions available.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default WorkoutSchedulePage;
